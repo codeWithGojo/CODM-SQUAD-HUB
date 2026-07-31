@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "CoDM Squad Hub",
+    "slug": "codm-squad-hub",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0A"
+      }
+    },
+    "ios": {
+      "supportsTablet": false
+    }
+  }
+}
