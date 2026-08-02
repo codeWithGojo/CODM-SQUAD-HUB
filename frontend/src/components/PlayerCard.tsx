@@ -10,6 +10,7 @@ export interface Player {
   isStarter: boolean;
   competitiveTier?: string;
   marketValueNgn?: number;
+  trophyCount?: number;
 }
 
 interface Props {
@@ -30,12 +31,28 @@ export function PlayerCard({ player, onPress }: Props) {
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initials}</Text>
       </View>
+
       <View style={styles.info}>
         <Text style={styles.name}>{player.gamertag}</Text>
         <Text style={styles.role}>
           {player.role} · {player.isStarter ? 'Starter' : 'Bench'}
         </Text>
+
+        {/* Extra meta row */}
+        <View style={styles.metaRow}>
+          {player.marketValueNgn != null && (
+            <Text style={styles.meta}>
+              ₦{player.marketValueNgn.toLocaleString()}
+            </Text>
+          )}
+          {player.trophyCount != null && player.trophyCount > 0 && (
+            <Text style={styles.metaTrophy}>
+              🏆 {player.trophyCount}
+            </Text>
+          )}
+        </View>
       </View>
+
       {player.competitiveTier ? (
         <TierBadge tier={player.competitiveTier} size="sm" />
       ) : null}
@@ -80,5 +97,21 @@ const styles = StyleSheet.create({
     color: colors.gray300,
     fontSize: theme.fontSize.sm,
     marginTop: 2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+  },
+  meta: {
+    color: colors.blueBright,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  metaTrophy: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

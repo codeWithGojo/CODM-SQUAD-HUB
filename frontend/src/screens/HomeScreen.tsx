@@ -9,13 +9,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, theme } from '../theme';
-import { MOCK_USER } from '../constants/mock';
+import { TrophyCard } from '../components/TrophyCard';
+import {
+  MOCK_USER,
+  MOCK_PLAYER_TROPHIES,
+  MOCK_CAREER_TIMELINE,
+} from '../constants/mock';
 
 export function HomeScreen() {
+  const recentTrophies = MOCK_PLAYER_TROPHIES.slice(0, 2);
+  const latestEvent = MOCK_CAREER_TIMELINE[0];
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Welcome back</Text>
@@ -28,6 +37,7 @@ export function HomeScreen() {
           </View>
         </View>
 
+        {/* Tier + value card */}
         <View style={styles.tierCard}>
           <Text style={styles.tierLabel}>Competitive Tier</Text>
           <Text style={styles.tierValue}>{MOCK_USER.competitiveTier}</Text>
@@ -37,13 +47,14 @@ export function HomeScreen() {
           </Text>
         </View>
 
+        {/* Quick actions */}
         <Text style={styles.sectionTitle}>Quick actions</Text>
         <View style={styles.actions}>
           {[
             { label: 'Transfer Centre', icon: '⇄' },
             { label: 'My Squad', icon: '◈' },
-            { label: 'Challenges', icon: '⚔' },
-            { label: 'Scrims', icon: '◎' },
+            { label: 'Trophy Cabinet', icon: '🏆' },
+            { label: 'Career', icon: '📈' },
           ].map((item) => (
             <TouchableOpacity
               key={item.label}
@@ -56,13 +67,32 @@ export function HomeScreen() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Recent</Text>
-        <View style={styles.activityCard}>
-          <Text style={styles.activityTitle}>No recent matches yet</Text>
-          <Text style={styles.activitySub}>
-            Official results and scrims will show up here
-          </Text>
+        {/* Latest career event */}
+        {latestEvent && (
+          <>
+            <Text style={styles.sectionTitle}>Latest</Text>
+            <View style={styles.latestCard}>
+              <Text style={styles.latestTitle}>{latestEvent.title}</Text>
+              <Text style={styles.latestDesc}>{latestEvent.description}</Text>
+              <Text style={styles.latestDate}>
+                {new Date(latestEvent.date).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+                {latestEvent.meta ? ` · ${latestEvent.meta}` : ''}
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* Recent trophies */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent trophies</Text>
         </View>
+        {recentTrophies.map((t) => (
+          <TrophyCard key={t.id} trophy={t} />
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -134,6 +164,9 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.semibold,
     marginBottom: theme.spacing.md,
   },
+  sectionHeader: {
+    marginTop: theme.spacing.md,
+  },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -159,22 +192,28 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
   },
-  activityCard: {
+  latestCard: {
     backgroundColor: colors.blackCard,
     borderRadius: theme.radius.md,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
   },
-  activityTitle: {
-    color: colors.gray300,
+  latestTitle: {
+    color: colors.white,
     fontSize: theme.fontSize.md,
-    marginBottom: 4,
+    fontWeight: theme.fontWeight.semibold,
   },
-  activitySub: {
-    color: colors.gray500,
+  latestDesc: {
+    color: colors.gray300,
     fontSize: theme.fontSize.sm,
-    textAlign: 'center',
+    marginTop: 4,
+  },
+  latestDate: {
+    color: colors.blueBright,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
   },
 });
