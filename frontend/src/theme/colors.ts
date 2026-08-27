@@ -1,34 +1,21 @@
 export const colors = {
-  // Core
-  black: '#0A0A0A',
-  blackSoft: '#121212',
-  blackCard: '#1A1A1A',
-  blackElevated: '#222222',
-
-  // Blue palette
-  blue: '#1E88E5',
-  blueBright: '#42A5F5',
-  blueDark: '#1565C0',
-  blueGlow: '#00B0FF',
-  blueMuted: '#1E3A5F',
-
-  // Neutrals
-  white: '#FFFFFF',
-  gray100: '#F5F5F5',
-  gray300: '#B0B0B0',
-  gray500: '#757575',
-  gray700: '#424242',
-
-  // Semantic
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  info: '#3B82F6',
-
-  // Borders & overlays
-  border: '#2A2A2A',
-  borderBlue: '#1E88E540',
-  overlay: 'rgba(0,0,0,0.7)',
+  bg: '#06070B',
+  surface: '#0D0F17',
+  surface2: '#131623',
+  surface3: '#1A1E2C',
+  border: '#252A3A',
+  red: '#A51CFF',
+  redBright: '#D62CFF',
+  redDark: '#6510A5',
+  redSoft: '#251033',
+  violet: '#7C3CFF',
+  magenta: '#E936FF',
+  cyan: '#39D4FF',
+  white: '#F6F7FB',
+  text: '#E8EAF2',
+  muted: '#A4A9B8',
+  subtle: '#6F7587',
+  success: '#36D98B',
+  warning: '#FFBE3D',
+  info: '#39D4FF',
 };
-
-export type Colors = typeof colors;
