@@ -1,0 +1,34 @@
+name: Sync v6 mobile frontend
+
+on:
+  push:
+    branches: [main, codm-v6-sync]
+    paths:
+      - 'release/frontend-v6.tar.gz'
+      - '.github/workflows/sync-v6-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - name: Overlay latest frontend source
+        run: tar -xzf release/frontend-v6.tar.gz
+      - name: Commit extracted source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend
+          if git diff --cached --quiet; then
+            echo "Frontend already synchronized"
+          else
+            git commit -m "feat: sync interactive mobile v6 frontend"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
