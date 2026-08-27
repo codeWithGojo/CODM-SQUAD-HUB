@@ -2,7 +2,7 @@ name: Sync v6 mobile frontend
 
 on:
   push:
-    branches: [codm-v6-sync]
+    branches: [main, codm-v6-sync]
     paths:
       - 'release/frontend-v6.tar.gz'
       - '.github/workflows/sync-v6-frontend.yml'
@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codm-v6-sync
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
       - name: Overlay latest frontend source
         run: tar -xzf release/frontend-v6.tar.gz
@@ -30,5 +30,5 @@ jobs:
             echo "Frontend already synchronized"
           else
             git commit -m "feat: sync interactive mobile v6 frontend"
-            git push origin codm-v6-sync
+            git push origin HEAD:${{ github.ref_name }}
           fi
