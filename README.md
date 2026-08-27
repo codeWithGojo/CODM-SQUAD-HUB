@@ -1,95 +1,49 @@
-# CODM Squad Hub
+# CoDM Squad Hub
 
-## What this is
+CoDM Squad Hub is a cloud-native competitive Call of Duty: Mobile platform built for the African esports scene. It connects player identity, organizations, tournaments, official results, rankings, recruitment, training, media and AI-assisted performance workflows in one system.
 
-CODM Squad Hub is an all-in-one competitive platform for the African Call of Duty: Mobile esports community.
+## Current v6 development build
 
-It is designed to help players, teams, tournament organizers, and organizations manage every aspect of competitive play from one place.
+The latest mobile build includes:
 
----
+- Expo / React Native mobile app with the purple esports design system
+- Player Passport and competitive career history surfaces
+- Tournament Control Centre and Match Centre flows
+- Organization Owner HQ with T1–T4 roster management
+- Player moves, role changes, contracts, stand-ins, staff permissions and applications
+- AI Training plans, drill completion, coach controls and VOD-driven development flows
+- Scrim Finder, scouting, free agents, tryouts and rankings
+- Connection Check with gaming-focused ping/speed UX and Nigerian ISP coverage starter data
+- Cloud-native architecture docs, Docker, Terraform and event-driven worker foundations
 
-## What's built
+## Cloud architecture
 
-### Backend
-- Authentication
-- User profiles
-- Organizations
-- Teams
-- Tournament Organizer applications
-- Competitive match system
-- Transfer Market foundation
-- Supabase integration
-- REST API
+The platform is designed around FastAPI, PostgreSQL/Supabase, Redis, object storage, queues/background workers, containerized workloads and Terraform-managed infrastructure. Tournament results and VOD analysis are designed as asynchronous event-driven workflows rather than blocking the mobile app.
 
-### Frontend
-- Expo React Native application
-- Navigation structure
-- Authentication screens
-- Dashboard foundation
-- Team pages
-- Profile pages
+## AI architecture
 
-### Documentation
-- Architecture
-- API Contract
-- Database Schema
-- AI System
-- Constitution
-- Governance
-- Changelog
-- Roadmap
-- Ranking Engine
-- Security
-- Tournament documentation
+Squad Hub uses a hybrid model: deterministic esports intelligence for rankings/performance/scouting/chemistry, with Gemini as a reasoning and multimodal interpretation layer. AI is advisory; it does not set official rankings, resolve disputes or override admins.
 
----
+## Why the network tools matter
 
-## How to run the backend
+Bad connection can literally cost an African CODM player a map or a tournament. Generic speed tests tell you Mbps; they do not tell you whether your connection is actually good enough for a competitive match. Connection Check is being built around gaming-relevant ping, stability, ISP coverage and regional reports.
+
+## Built / Learned / Challenge
+
+**Built:** a mobile-first esports operating system with cloud/event-driven foundations, competitive data flows, organization management and AI-assisted training.
+
+**Learned:** reliable esports products need more than UI. Identity, auditability, asynchronous jobs, network quality and official-history integrity all affect the product architecture.
+
+**Challenge:** Nigerian ISP data varies heavily by location and reliable public coverage/performance APIs are limited, so the system starts with curated coverage data and is structured to improve with verified user reports over time.
+
+## Run the mobile app
 
 ```bash
-cd backend
-
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
+cd frontend
+npm install
+npx expo start
 ```
 
-Backend will run on:
+## Status
 
-```
-http://127.0.0.1:8000
-```
-
-Swagger docs:
-
-```
-http://127.0.0.1:8000/docs
-```
-
----
-
-## Next Priorities
-
-- Finish frontend UI
-- Connect frontend to backend APIs
-- Complete Tournament System
-- Complete Ranking Engine
-- Team verification
-- Match history
-- Statistics dashboard
-- Notifications
-- Payment integration
-- Admin dashboard
-- Redis caching
-- Cloudflare R2 media storage
-- Deploy backend
-- Deploy frontend
-
----
-
-Built by the CODM Squad Hub Team.
+This repository is an active development baseline, not a production release. Some screens and actions still use prototype/local state while backend persistence and production infrastructure are being connected.
