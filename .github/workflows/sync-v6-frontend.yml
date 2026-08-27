@@ -2,9 +2,9 @@ name: Sync v6 mobile frontend
 
 on:
   push:
-    branches: [main, codm-v6-sync]
+    branches: [main]
     paths:
-      - 'release/frontend-v6.tar.gz'
+      - 'release/frontend-v6.b64.part*'
       - '.github/workflows/sync-v6-frontend.yml'
   workflow_dispatch:
 
@@ -17,10 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: main
           fetch-depth: 0
-      - name: Overlay latest frontend source
-        run: tar -xzf release/frontend-v6.tar.gz
+      - name: Rebuild v6 frontend bundle
+        run: |
+          cat release/frontend-v6.b64.part* > /tmp/frontend-v6.b64
+          base64 -d /tmp/frontend-v6.b64 > /tmp/frontend-v6.tar.gz
+          tar -xzf /tmp/frontend-v6.tar.gz
       - name: Commit extracted source
         run: |
           git config user.name "github-actions[bot]"
@@ -30,5 +33,5 @@ jobs:
             echo "Frontend already synchronized"
           else
             git commit -m "feat: sync interactive mobile v6 frontend"
-            git push origin HEAD:${{ github.ref_name }}
+            git push origin main
           fi
