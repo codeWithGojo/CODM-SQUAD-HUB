@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import uuid
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.time import as_utc, utcnow
+from app.models.enums import TournamentOrganizerStatus
+from app.models.organizer import TournamentOrganizerApplication
 from app.models.user import User
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(auto_error=True)
 
 
 def get_current_user(
@@ -16,55 +21,43 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     raw_sub = decode_access_token(credentials.credentials)
-    if not raw_sub or raw_sub.startswith("pending:"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or incomplete auth token.")
-
     try:
-        user_id = uuid.UUID(raw_sub)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Malformed token subject.")
+        user_id = uuid.UUID(raw_sub or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token.") from exc
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
-    if user.is_banned:
+    if user.is_banned and (user.banned_until is None or as_utc(user.banned_until) > utcnow()):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account is banned.")
+    user.last_active = utcnow()
     return user
 
 
-def require_team_manager(team_id: str):
-    """
-    Factory for a dependency that checks the current user manages the
-    given team. Used to gate manager-only actions (submitting official
-    results, VOD reviews, managing roster) — the core rule that keeps
-    the leaderboard trustworthy.
-    """
-    def _check(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-        from app.models.team import Team
-        team = db.query(Team).filter(Team.id == team_id).first()
-        if not team or team.manager_id != current_user.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only this team's manager can do that.")
-        return current_user
+def require_platform_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_platform_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform administrator access required.")
+    return current_user
 
-    return _check
+
 def require_tournament_organizer(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
-    from app.models.organizer import TournamentOrganizerApplication
-    from app.models.enums import TournamentOrganizerStatus
-
-    application = (
-        db.query(TournamentOrganizerApplication)
+) -> User:
+    if current_user.is_platform_admin:
+        return current_user
+    approved = (
+        db.query(TournamentOrganizerApplication.id)
         .filter(
             TournamentOrganizerApplication.user_id == current_user.id,
             TournamentOrganizerApplication.status == TournamentOrganizerStatus.APPROVED,
         )
         .first()
     )
-    if not application:
+    if not approved:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only an approved Tournament Organizer can do that.",
+            detail="Approved Tournament Organizer access required.",
         )
     return current_user
