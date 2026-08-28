@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: codm_squad_hub
+      POSTGRES_USER: squadhub
+      POSTGRES_PASSWORD: local-development-only
+    ports:
+      - "5432:5432"
+    volumes:
+      - codm_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U squadhub -d codm_squad_hub"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+psycopg2://squadhub:local-development-only@postgres:5432/codm_squad_hub
+      JWT_SECRET_KEY: local-only-change-before-sharing
+      ANTI_ABUSE_SECRET: local-only-anti-abuse-secret
+      AUTO_CREATE_TABLES: "false"
+      EXPOSE_DEV_OTP: "true"
+      CORS_ORIGINS: http://localhost:8081,http://localhost:19006
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  codm_postgres:
