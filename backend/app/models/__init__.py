@@ -1,26 +1,53 @@
-"""
-Import every model here so `Base.metadata.create_all()` (and Alembic's
-autogenerate) discovers all tables from a single import of this package.
-"""
-from app.models.user import Region, User, OTPCode
-from app.models.team import Organization, Team, TeamMember, PlayerTimelineEvent
-from app.models.competitive import (
-    OfficialTeamResult,
-    Challenge,
-    Scrim,
-    PlayerMatchLog,
-)
-from app.models.ai_review import VODReview, DrillPool, AIWeeklyReview
-from app.models.transfer import Contract, TransferOffer, MarketValueSnapshot, TransferWindow
-from app.models.misc import MapGuide, Subscription, AccountReport
+"""Import every model so SQLAlchemy and Alembic share one complete metadata graph."""
 
-__all__ = [
-    "Region", "User", "OTPCode",
-    "Organization", "Team", "TeamMember", "PlayerTimelineEvent",
-    "OfficialTeamResult", "Challenge", "Scrim", "PlayerMatchLog",
-    "VODReview", "DrillPool", "AIWeeklyReview",
-    "Contract", "TransferOffer", "MarketValueSnapshot", "TransferWindow",
-    "MapGuide", "Subscription", "AccountReport",
-]
+from app.models.ai_review import (
+    AIWeeklyReview,
+    DrillPool,
+    PerformanceMetric,
+    TrainingAssignment,
+    TrainingPlan,
+    VODReview,
+)
+from app.models.commerce import (
+    CampaignContribution,
+    CrowdfundingCampaign,
+    MerchOrder,
+    MerchOrderItem,
+    MerchProduct,
+    PaymentTransaction,
+    TeamSubscription,
+)
+from app.models.communication import ChatMessage, ChatParticipant, ChatThread, Notification
+from app.models.competitive import Challenge, OfficialTeamResult, PlayerMatchLog, Scrim
+from app.models.governance import BlacklistAppeal, BlacklistEntry, TournamentDispute
+from app.models.misc import AccountReport, MapGuide
+from app.models.organization_extra import (
+    Achievement,
+    AuditLog,
+    HallOfFameEntry,
+    OrganizationStaffMember,
+    PlayerRetirement,
+    ReputationEvent,
+)
 from app.models.organizer import TournamentOrganizerApplication
-# ...and add "TournamentOrganizerApplication" to the __all__ list
+from app.models.ranking import RankingCalculation, RankingSnapshot, Season
+from app.models.team import Organization, PlayerTimelineEvent, Team, TeamMember
+from app.models.tournament import (
+    Tournament,
+    TournamentMatch,
+    TournamentPlayerStat,
+    TournamentRegistration,
+    TournamentStanding,
+)
+from app.models.transfer import (
+    Contract,
+    MarketValueSnapshot,
+    TransferOffer,
+    TransferOfferEvent,
+    TransferRumour,
+    TransferWatchlist,
+    TransferWindow,
+)
+from app.models.user import AccountSecurityEvent, OTPCode, Region, User
+
+__all__ = [name for name in globals() if not name.startswith("_")]
