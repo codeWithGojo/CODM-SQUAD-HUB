@@ -80,7 +80,7 @@ def create_guide(
     return row
 
 
-@router.put("/ {guide_id}", response_model=MapGuideOut)
+@router.put("/{guide_id}", response_model=MapGuideOut)
 def update_guide(
     guide_id: uuid.UUID,
     payload: MapGuideIn,
@@ -121,3 +121,21 @@ def update_guide(
     db.commit()
     db.refresh(row)
     return row
+
+
+@router.delete("/{guide_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_guide(
+    guide_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.get(MapGuide, guide_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Guide not found.")
+    if row.team_id:
+        require_team_manager(db, row.team_id, current_user)
+    elif not current_user.is_platform_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required.")
+    row.is_active = False
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
