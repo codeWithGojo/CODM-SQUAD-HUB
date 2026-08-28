@@ -16,6 +16,9 @@
     },
     "ios": {
       "supportsTablet": false
-    }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
   }
 }

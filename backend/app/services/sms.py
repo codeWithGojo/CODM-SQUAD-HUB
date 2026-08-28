@@ -1,22 +1,38 @@
-"""
-SMS delivery for OTP codes.
+"""OTP delivery adapter. Provider wiring stays server-side."""
 
-Real Nigerian-market providers worth checking when you're ready to wire
-this up for real: Termii, Africa's Talking, or Twilio (more expensive,
-less local support). All follow roughly the same "send message to phone"
-API shape, so swapping providers later should only mean changing this file.
+from __future__ import annotations
 
-For now this stub logs the code instead of sending a real SMS, so auth
-can be built and tested end-to-end before a provider account exists.
-"""
 import logging
 
-logger = logging.getLogger("sms")
+import httpx
+
+from app.core.config import settings
+
+logger = logging.getLogger("codm.sms")
 
 
 def send_otp_sms(phone: str, code: str) -> bool:
-    # TODO: replace with a real provider call, e.g.:
-    #   response = httpx.post("https://api.ng.termii.com/api/sms/send", json={...})
-    #   return response.status_code == 200
-    logger.info(f"[DEV MODE] Would send OTP {code} to {phone}")
-    return True
+    if not settings.sms_api_key:
+        logger.info("OTP delivery simulated for phone ending %s", phone[-4:])
+        return True
+    if settings.sms_provider.lower() != "termii":
+        logger.error("Unsupported SMS provider: %s", settings.sms_provider)
+        return False
+    try:
+        response = httpx.post(
+            f"{settings.sms_base_url.rstrip('/')}/api/sms/send",
+            json={
+                "api_key": settings.sms_api_key,
+                "to": phone,
+                "from": settings.sms_sender_id,
+                "sms": f"Your CoDM Squad Hub verification code is {code}. It expires soon.",
+                "type": "plain",
+                "channel": "generic",
+            },
+            timeout=15.0,
+        )
+        response.raise_for_status()
+        return True
+    except httpx.HTTPError as exc:
+        logger.error("SMS provider request failed: %s", type(exc).__name__)
+        return False

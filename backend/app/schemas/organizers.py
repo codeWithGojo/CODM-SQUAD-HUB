@@ -1,29 +1,32 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, ForeignKey, Enum as SAEnum
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from pydantic import BaseModel, Field
 
-from app.core.database import Base
 from app.models.enums import TournamentOrganizerStatus
 
 
-class TournamentOrganizerApplication(Base):
-    """
-    'Anyone can apply' (locked decision) — but applying isn't the same as
-    being approved. Only APPROVED applicants can resolve disputes or
-    configure Transfer Windows. Kept as its own table (not a flag on
-    User) so the approval history/reasoning is preserved.
-    """
-    __tablename__ = "tournament_organizer_applications"
+class ApplyOrganizerIn(BaseModel):
+    reason_for_applying: str = Field(min_length=20, max_length=1000)
+    experience_summary: str | None = Field(default=None, max_length=1000)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
-    status: Mapped[TournamentOrganizerStatus] = mapped_column(
-        SAEnum(TournamentOrganizerStatus), default=TournamentOrganizerStatus.PENDING
-    )
-    reason_for_applying: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    applied_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+class ReviewOrganizerIn(BaseModel):
+    status: TournamentOrganizerStatus
+    review_note: str | None = Field(default=None, max_length=500)
+
+
+class OrganizerApplicationOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    status: TournamentOrganizerStatus
+    reason_for_applying: str
+    experience_summary: str | None
+    reviewed_by: uuid.UUID | None
+    review_note: str | None
+    reviewed_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -18,4 +18,13 @@ export const colors = {
   success: '#36D98B',
   warning: '#FFBE3D',
   info: '#39D4FF',
+  black: '#06070B',
+  blackSoft: '#0D0F17',
+  blackCard: '#131623',
+  blackElevated: '#1A1E2C',
+  blue: '#7C3CFF',
+  blueBright: '#39D4FF',
+  gray300: '#A4A9B8',
+  gray500: '#6F7587',
+  error: '#D62CFF',
 };
