@@ -1,17 +1,19 @@
-import uuid
-from datetime import datetime
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
-from app.models.user import User
-from app.models.organizer import TournamentOrganizerApplication
+from app.core.deps import get_current_user, require_platform_admin
+from app.core.time import utcnow
 from app.models.enums import TournamentOrganizerStatus
-from app.schemas.organizer import ApplyOrganizerIn, ReviewOrganizerIn, OrganizerApplicationOut
+from app.models.organizer import TournamentOrganizerApplication
+from app.models.user import User
+from app.schemas.organizers import ApplyOrganizerIn, OrganizerApplicationOut, ReviewOrganizerIn
 
-router = APIRouter(prefix="/organizer-applications", tags=["tournament-organizer"])
+router = APIRouter(prefix="/organizer-applications", tags=["tournament-organizers"])
 
 
 @router.post("", response_model=OrganizerApplicationOut, status_code=status.HTTP_201_CREATED)
@@ -20,23 +22,24 @@ def apply_to_be_organizer(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Anyone can apply (locked decision) — this just files the application, doesn't grant anything yet."""
-    existing = (
-        db.query(TournamentOrganizerApplication)
-        .filter(TournamentOrganizerApplication.user_id == current_user.id)
-        .first()
-    )
+    existing = db.query(TournamentOrganizerApplication).filter_by(user_id=current_user.id).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"You already have an application (status: {existing.status.value}).")
-
-    application = TournamentOrganizerApplication(
-        user_id=current_user.id,
-        reason_for_applying=payload.reason_for_applying,
-    )
-    db.add(application)
+        if existing.status in {TournamentOrganizerStatus.REJECTED, TournamentOrganizerStatus.SUSPENDED}:
+            existing.status = TournamentOrganizerStatus.PENDING
+            existing.reason_for_applying = payload.reason_for_applying
+            existing.experience_summary = payload.experience_summary
+            existing.review_note = None
+            existing.reviewed_by = None
+            existing.reviewed_at = None
+            db.commit()
+            db.refresh(existing)
+            return existing
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Application already exists ({existing.status.value}).")
+    row = TournamentOrganizerApplication(user_id=current_user.id, **payload.model_dump())
+    db.add(row)
     db.commit()
-    db.refresh(application)
-    return application
+    db.refresh(row)
+    return row
 
 
 @router.get("/me", response_model=OrganizerApplicationOut)
@@ -44,36 +47,40 @@ def my_application(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    application = (
-        db.query(TournamentOrganizerApplication)
-        .filter(TournamentOrganizerApplication.user_id == current_user.id)
-        .first()
-    )
-    if not application:
-        raise HTTPException(status_code=404, detail="You haven't applied yet.")
-    return application
+    row = db.query(TournamentOrganizerApplication).filter_by(user_id=current_user.id).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No organizer application found.")
+    return row
 
 
-@router.post("/{application_id}/review", response_model=OrganizerApplicationOut)
+@router.get("", response_model=list[OrganizerApplicationOut])
+def list_applications(
+    application_status: TournamentOrganizerStatus | None = Query(default=None, alias="status"),
+    _admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    query = db.query(TournamentOrganizerApplication)
+    if application_status:
+        query = query.filter(TournamentOrganizerApplication.status == application_status)
+    return query.order_by(TournamentOrganizerApplication.created_at.desc()).limit(200).all()
+
+
+@router.patch("/{application_id}", response_model=OrganizerApplicationOut)
 def review_application(
     application_id: uuid.UUID,
     payload: ReviewOrganizerIn,
-    current_user: User = Depends(get_current_user),
+    admin: User = Depends(require_platform_admin),
     db: Session = Depends(get_db),
 ):
-    """
-    TODO: this currently lets ANY authenticated user approve/reject
-    applications — same class of gap as the old resolve-dispute endpoint
-    used to have. Needs a real admin/superuser check before this is
-    safe to expose publicly. Flagged clearly here, not forgotten.
-    """
-    application = db.query(TournamentOrganizerApplication).filter(TournamentOrganizerApplication.id == application_id).first()
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found.")
-
-    application.status = TournamentOrganizerStatus.APPROVED if payload.approve else TournamentOrganizerStatus.REJECTED
-    application.reviewed_by = current_user.id
-    application.reviewed_at = datetime.utcnow()
+    if payload.status == TournamentOrganizerStatus.PENDING:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Review must approve, reject, or suspend.")
+    row = db.get(TournamentOrganizerApplication, application_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
+    row.status = payload.status
+    row.review_note = payload.review_note
+    row.reviewed_by = admin.id
+    row.reviewed_at = utcnow()
     db.commit()
-    db.refresh(application)
-    return application
+    db.refresh(row)
+    return row
