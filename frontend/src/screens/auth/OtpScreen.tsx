@@ -6,26 +6,31 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { colors, theme } from '../../theme';
+import { ApiError } from '../../services/api';
 
 interface Props {
   phone: string;
-  onVerify: (code: string) => void;
+  devCode?: string;
+  onVerify: (code: string) => Promise<void>;
+  onResend: () => Promise<string | undefined>;
   onBack: () => void;
 }
 
-export function OtpScreen({ phone, onVerify, onBack }: Props) {
+export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props) {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [localDevCode, setLocalDevCode] = useState(devCode);
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const handleChange = (text: string, index: number) => {
     if (text.length > 1) {
-      // paste support
       const digits = text.replace(/\D/g, '').slice(0, 6).split('');
       const next = [...code];
       digits.forEach((d, i) => {
@@ -52,15 +57,32 @@ export function OtpScreen({ phone, onVerify, onBack }: Props) {
     }
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const full = code.join('');
     if (full.length < 6) return;
+    setError('');
     setLoading(true);
-    // In real app: call /api/v1/auth/login or /signup
-    setTimeout(() => {
+    try {
+      await onVerify(full);
+    } catch (verifyError) {
+      setError(verifyError instanceof ApiError ? verifyError.message : 'Could not verify this code.');
+    } finally {
       setLoading(false);
-      onVerify(full);
-    }, 800);
+    }
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      setLocalDevCode(await onResend());
+      setCode(['', '', '', '', '', '']);
+      inputs.current[0]?.focus();
+    } catch (resendError) {
+      setError(resendError instanceof ApiError ? resendError.message : 'Could not resend the code.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,9 +93,9 @@ export function OtpScreen({ phone, onVerify, onBack }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.content}>
-          <Text style={styles.back} onPress={onBack}>
-            ← Back
-          </Text>
+          <Pressable onPress={onBack} accessibilityRole="button" style={styles.backButton}>
+            <Text style={styles.back}>← Back</Text>
+          </Pressable>
 
           <Text style={styles.title}>Enter code</Text>
           <Text style={styles.subtitle}>
@@ -95,9 +117,13 @@ export function OtpScreen({ phone, onVerify, onBack }: Props) {
                 keyboardType="number-pad"
                 maxLength={i === 0 ? 6 : 1}
                 selectTextOnFocus
+                accessibilityLabel={`Verification code digit ${i + 1}`}
               />
             ))}
           </View>
+
+          {localDevCode ? <Text style={styles.devCode}>Local development code: {localDevCode}</Text> : null}
+          {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
 
           <Button
             title="Verify"
@@ -106,9 +132,9 @@ export function OtpScreen({ phone, onVerify, onBack }: Props) {
             disabled={code.join('').length < 6}
           />
 
-          <Text style={styles.resend}>
-            Didn't receive it? <Text style={styles.resendLink}>Resend</Text>
-          </Text>
+          <Pressable onPress={handleResend} disabled={loading} accessibilityRole="button">
+            <Text style={styles.resend}>Didn't receive it? <Text style={styles.resendLink}>Resend</Text></Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -132,10 +158,13 @@ const styles = StyleSheet.create({
   back: {
     color: colors.blueBright,
     fontSize: theme.fontSize.md,
-    marginBottom: theme.spacing.xl,
+  },
+  backButton: {
     position: 'absolute',
     top: theme.spacing.lg,
     left: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    paddingRight: theme.spacing.md,
   },
   title: {
     color: colors.white,
@@ -182,5 +211,17 @@ const styles = StyleSheet.create({
   resendLink: {
     color: colors.blueBright,
     fontWeight: theme.fontWeight.semibold,
+  },
+  devCode: {
+    color: colors.warning,
+    fontSize: theme.fontSize.xs,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  error: {
+    color: colors.error,
+    fontSize: theme.fontSize.xs,
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
   },
 });
