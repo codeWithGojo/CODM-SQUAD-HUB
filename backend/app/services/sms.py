@@ -34,5 +34,6 @@ def send_otp_sms(phone: str, code: str) -> bool:
         response.raise_for_status()
         return True
     except httpx.HTTPError as exc:
+        # Never log the message payload, code, phone number, or provider key.
         logger.error("SMS provider request failed: %s", type(exc).__name__)
         return False

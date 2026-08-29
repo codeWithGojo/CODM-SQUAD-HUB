@@ -20,6 +20,7 @@ def compute_market_value(
     trigger_type: str = "manual",
     trigger_id: uuid.UUID | None = None,
 ) -> MarketValueSnapshot:
+    """Produce an explainable estimate from verified platform signals only."""
     player = db.get(User, player_id)
     if not player:
         raise ValueError("Player not found")
@@ -66,7 +67,12 @@ def compute_market_value(
         100_000_000,
         max(
             100_000,
-            base + ranking_component + experience_component + performance_component + recognition_component + reputation_component,
+            base
+            + ranking_component
+            + experience_component
+            + performance_component
+            + recognition_component
+            + reputation_component,
         ),
     )
     factors = {

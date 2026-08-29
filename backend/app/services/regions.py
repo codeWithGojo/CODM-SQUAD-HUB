@@ -68,10 +68,12 @@ AFRICAN_REGIONS: tuple[tuple[str, str, str], ...] = (
 
 
 def region_id(code: str) -> uuid.UUID:
+    """Return a stable identifier so seeded environments share the same IDs."""
     return uuid.uuid5(uuid.NAMESPACE_URL, f"https://codmsquadhub.africa/regions/{code.lower()}")
 
 
 def seed_regions(db: Session) -> int:
+    """Insert any missing countries; safe to rerun in local/dev startup."""
     existing = {code for (code,) in db.query(Region.code).all()}
     missing = [
         Region(id=region_id(code), code=code, name=name, zone=zone)

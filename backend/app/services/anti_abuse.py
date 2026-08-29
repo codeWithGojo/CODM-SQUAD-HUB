@@ -10,6 +10,8 @@ from app.models.user import AccountSecurityEvent, User
 
 
 def request_fingerprints(request: Request) -> tuple[str | None, str | None]:
+    # Uvicorn resolves trusted proxy headers before FastAPI builds Request.
+    # Reading X-Forwarded-For here directly would let untrusted clients spoof it.
     ip = request.client.host if request.client else None
     device = request.headers.get("x-device-fingerprint")
     return privacy_hash(ip), privacy_hash(device)

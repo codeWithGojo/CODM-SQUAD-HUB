@@ -1,18 +1,19 @@
 """
 Shared logic for moving a player from one team to another — used by
-promotions/demotions within an org, and (later) by the transfer market
+promotions/demotions within an organization
 once a deal completes. Centralized here so both call sites can't drift
 out of sync on the rule that matters most: personal competitive stats,
 rankings, and market value NEVER reset on a move — only which team a
 player is attached to changes (locked decision).
 """
 import uuid
-from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models.team import Team, TeamMember, PlayerTimelineEvent
+from app.core.time import utcnow
+from app.models.team import TeamMember, PlayerTimelineEvent
 from app.models.enums import TeamRole
+from app.models.transfer import Contract
 
 
 def move_player_to_team(
@@ -37,14 +38,18 @@ def move_player_to_team(
     """
     old_membership = (
         db.query(TeamMember)
-        .filter(TeamMember.user_id == user_id, TeamMember.is_active == True)  # noqa: E712
+        .filter(
+            TeamMember.user_id == user_id,
+            TeamMember.is_active.is_(True),
+            TeamMember.role.in_([TeamRole.PLAYER, TeamRole.SUBSTITUTE]),
+        )
         .first()
     )
     from_team_id = old_membership.team_id if old_membership else None
 
     if old_membership:
         old_membership.is_active = False
-        old_membership.left_at = datetime.utcnow()
+        old_membership.left_at = utcnow()
 
     new_membership = TeamMember(
         team_id=to_team_id,
@@ -53,6 +58,10 @@ def move_player_to_team(
         is_active=True,
     )
     db.add(new_membership)
+
+    contract = db.query(Contract).filter(Contract.player_id == user_id, Contract.is_active.is_(True)).first()
+    if contract:
+        contract.team_id = to_team_id
 
     db.add(
         PlayerTimelineEvent(
