@@ -367,3 +367,353 @@ def report_match(
         {"type": "match.reported", "match_id": str(match.id), "score_a": match.score_a, "score_b": match.score_b},
     )
     return match
+
+
+@router.put("/{tournament_id}/matches/{match_id}/stats", status_code=status.HTTP_201_CREATED)
+def submit_player_stats(
+    tournament_id: uuid.UUID,
+    match_id: uuid.UUID,
+    payload: list[PlayerStatIn],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    match = db.get(TournamentMatch, match_id)
+    if not match or match.tournament_id != tournament_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found.")
+    permitted_team_ids = {value for value in (match.team_a_id, match.team_b_id) if value}
+    if not current_user.is_platform_admin:
+        managed = {team_id for team_id in permitted_team_ids if get_team_or_404(db, team_id).manager_id == current_user.id}
+        if not managed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Participating team manager access required.")
+        if any(row.team_id not in managed for row in payload):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Managers may submit only their own team's stats.")
+    for item in payload:
+        if item.team_id not in permitted_team_ids:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stats include a non-participating team.")
+        registration = (
+            db.query(TournamentRegistration)
+            .filter_by(
+                tournament_id=tournament_id,
+                team_id=item.team_id,
+                status=RegistrationStatus.APPROVED,
+            )
+            .first()
+        )
+        if registration:
+            registered_ids = set(registration.roster_user_ids + registration.stand_in_user_ids)
+            eligible = str(item.user_id) in registered_ids
+        else:
+            eligible = bool(
+                db.query(TeamMember.id)
+                .filter_by(team_id=item.team_id, user_id=item.user_id, is_active=True)
+                .first()
+            )
+        if not eligible:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stats include a player outside the registered roster.")
+        stat_data = item.model_dump(exclude={"hill_output"})
+        if item.hill_output:
+            metadata = dict(stat_data["metadata_json"])
+            metadata["hill_output"] = item.hill_output.model_dump()
+            stat_data["metadata_json"] = metadata
+        row = db.query(TournamentPlayerStat).filter_by(match_id=match_id, user_id=item.user_id).first()
+        if row:
+            for key, value in stat_data.items():
+                setattr(row, key, value)
+        else:
+            db.add(TournamentPlayerStat(match_id=match_id, **stat_data))
+    db.commit()
+    return {"saved": len(payload)}
+
+
+@router.get("/{tournament_id}/matches/{match_id}/hill-output")
+def hill_output(
+    tournament_id: uuid.UUID,
+    match_id: uuid.UUID,
+    team_id: uuid.UUID = Query(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    match = db.get(TournamentMatch, match_id)
+    if not match or match.tournament_id != tournament_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found.")
+    participating_team_ids = {value for value in (match.team_a_id, match.team_b_id) if value}
+    if team_id not in participating_team_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Team did not participate in this match.")
+    if match.status != TournamentMatchStatus.VERIFIED and not current_user.is_platform_admin:
+        team = get_team_or_404(db, team_id)
+        is_member = bool(
+            db.query(TeamMember.id)
+            .filter_by(team_id=team_id, user_id=current_user.id, is_active=True)
+            .first()
+        )
+        if team.manager_id != current_user.id and not is_member:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Hill output stays private to the team until match verification.")
+
+    rows = (
+        db.query(TournamentPlayerStat, User, TeamMember)
+        .join(User, User.id == TournamentPlayerStat.user_id)
+        .outerjoin(
+            TeamMember,
+            (TeamMember.team_id == TournamentPlayerStat.team_id)
+            & (TeamMember.user_id == TournamentPlayerStat.user_id)
+            & TeamMember.is_active.is_(True),
+        )
+        .filter(TournamentPlayerStat.match_id == match_id, TournamentPlayerStat.team_id == team_id)
+        .order_by(TournamentPlayerStat.kills.desc())
+        .all()
+    )
+    players = []
+    for stat, user, membership in rows:
+        output = (stat.metadata_json or {}).get("hill_output")
+        if not output:
+            continue
+        values = output["kills_by_hill"]
+        total = sum(values)
+        average = total / len(values)
+        peak = max(values)
+        peak_index = values.index(peak)
+        variance = sum((value - average) ** 2 for value in values) / len(values)
+        consistency = max(0, min(100, round(100 - variance ** 0.5 * 16)))
+        players.append(
+            {
+                "user_id": stat.user_id,
+                "gamertag": user.gamertag,
+                "in_game_role": membership.in_game_role if membership else None,
+                "kills": stat.kills,
+                "hill_output": output,
+                "summary": {
+                    "hill_kills": total,
+                    "average_per_hill": round(average, 2),
+                    "peak_kills": peak,
+                    "peak_hill_index": peak_index,
+                    "consistency": consistency,
+                },
+            }
+        )
+    return {
+        "match_id": match.id,
+        "team_id": team_id,
+        "status": match.status,
+        "players": players,
+    }
+
+
+@router.post("/{tournament_id}/matches/{match_id}/verify", response_model=MatchOut)
+def verify_match(
+    tournament_id: uuid.UUID,
+    match_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    organizer: User = Depends(require_tournament_organizer),
+    db: Session = Depends(get_db),
+):
+    tournament = db.get(Tournament, tournament_id)
+    match = db.get(TournamentMatch, match_id)
+    if not tournament or not match or match.tournament_id != tournament_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found.")
+    _require_tournament_owner(tournament, organizer)
+    if match.status == TournamentMatchStatus.VERIFIED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Match is already verified.")
+    if match.status == TournamentMatchStatus.DISPUTED:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Resolve the dispute before verification.")
+    verify_match_and_update_ledger(db, match=match, verifier_id=organizer.id)
+    for player_id, in db.query(TournamentPlayerStat.user_id).filter_by(match_id=match.id).all():
+        compute_market_value(db, player_id=player_id, trigger_type="verified_match", trigger_id=match.id)
+    db.commit()
+    db.refresh(match)
+    background_tasks.add_task(
+        realtime.publish_channel,
+        f"tournament:{tournament_id}",
+        {"type": "match.verified", "match_id": str(match.id), "winner_team_id": str(match.winner_team_id) if match.winner_team_id else None},
+    )
+    return match
+
+
+@router.get("/{tournament_id}/standings")
+def standings(tournament_id: uuid.UUID, db: Session = Depends(get_db)):
+    return (
+        db.query(TournamentStanding)
+        .filter_by(tournament_id=tournament_id)
+        .order_by(TournamentStanding.points.desc(), (TournamentStanding.score_for - TournamentStanding.score_against).desc())
+        .all()
+    )
+
+
+@router.post("/{tournament_id}/disputes", status_code=status.HTTP_201_CREATED)
+def file_dispute(
+    tournament_id: uuid.UUID,
+    payload: DisputeIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not db.get(Tournament, tournament_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found.")
+    if payload.filing_team_id:
+        require_team_manager(db, payload.filing_team_id, current_user)
+    row = TournamentDispute(tournament_id=tournament_id, filed_by=current_user.id, **payload.model_dump())
+    db.add(row)
+    if payload.match_id:
+        match = db.get(TournamentMatch, payload.match_id)
+        if not match or match.tournament_id != tournament_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Disputed match does not belong to this tournament.")
+        participants = {value for value in (match.team_a_id, match.team_b_id) if value}
+        claimed_teams = {value for value in (payload.filing_team_id, payload.against_team_id) if value}
+        if not claimed_teams.issubset(participants):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dispute teams must be participants in the match.")
+        match.status = TournamentMatchStatus.DISPUTED
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.patch("/{tournament_id}/disputes/{dispute_id}")
+def rule_on_dispute(
+    tournament_id: uuid.UUID,
+    dispute_id: uuid.UUID,
+    payload: DisputeRulingIn,
+    organizer: User = Depends(require_tournament_organizer),
+    db: Session = Depends(get_db),
+):
+    tournament = db.get(Tournament, tournament_id)
+    row = db.get(TournamentDispute, dispute_id)
+    if not tournament or not row or row.tournament_id != tournament_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dispute not found.")
+    _require_tournament_owner(tournament, organizer)
+    row.status = payload.status
+    row.ruling = payload.ruling
+    row.resolved_by = organizer.id
+    row.resolved_at = utcnow()
+    if row.match_id and payload.status in {DisputeStatus.RESOLVED, DisputeStatus.DISMISSED}:
+        match = db.get(TournamentMatch, row.match_id)
+        if match and match.status == TournamentMatchStatus.DISPUTED:
+            match.status = TournamentMatchStatus.REPORTED
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@governance_router.get("/blacklist", response_model=list[BlacklistEntryOut])
+def public_blacklist(db: Session = Depends(get_db)):
+    now = utcnow()
+    return (
+        db.query(BlacklistEntry)
+        .filter(
+            BlacklistEntry.status.in_([BlacklistStatus.ACTIVE, BlacklistStatus.APPEALED]),
+            BlacklistEntry.starts_at <= now,
+            or_(BlacklistEntry.ends_at.is_(None), BlacklistEntry.ends_at > now),
+        )
+        .order_by(BlacklistEntry.created_at.desc())
+        .all()
+    )
+
+
+@governance_router.post("/blacklist", response_model=BlacklistEntryOut, status_code=status.HTTP_201_CREATED)
+def create_blacklist_entry(
+    payload: BlacklistEntryIn,
+    organizer: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    subject_model = {
+        BlacklistSubjectType.USER: User,
+        BlacklistSubjectType.TEAM: Team,
+        BlacklistSubjectType.ORGANIZATION: Organization,
+    }[payload.subject_type]
+    subject = db.get(subject_model, payload.subject_id)
+    if not subject:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blacklist subject not found.")
+    subject_name = subject.gamertag if isinstance(subject, User) else subject.name
+    row = BlacklistEntry(
+        issued_by=organizer.id,
+        starts_at=payload.starts_at or utcnow(),
+        **payload.model_dump(exclude={"starts_at", "subject_name_snapshot"}),
+        subject_name_snapshot=subject_name,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@governance_router.post("/blacklist/{entry_id}/appeals", status_code=status.HTTP_201_CREATED)
+def appeal_blacklist_entry(
+    entry_id: uuid.UUID,
+    payload: BlacklistAppealIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    entry = db.get(BlacklistEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blacklist entry not found.")
+    if not current_user.is_platform_admin:
+        if entry.subject_type == BlacklistSubjectType.USER and entry.subject_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot appeal this entry.")
+        if entry.subject_type == BlacklistSubjectType.TEAM:
+            require_team_manager(db, entry.subject_id, current_user)
+        if entry.subject_type == BlacklistSubjectType.ORGANIZATION:
+            require_org_permission(db, entry.subject_id, current_user, "governance.manage")
+    if db.query(BlacklistAppeal.id).filter_by(blacklist_entry_id=entry_id, status=DisputeStatus.OPEN).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An open appeal already exists.")
+    row = BlacklistAppeal(blacklist_entry_id=entry_id, filed_by=current_user.id, **payload.model_dump())
+    entry.status = BlacklistStatus.APPEALED
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@governance_router.patch("/blacklist-appeals/{appeal_id}")
+def decide_blacklist_appeal(
+    appeal_id: uuid.UUID,
+    payload: BlacklistAppealDecisionIn,
+    admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.get(BlacklistAppeal, appeal_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appeal not found.")
+    row.status = payload.status
+    row.decision = payload.decision
+    row.reviewed_by = admin.id
+    row.reviewed_at = utcnow()
+    entry = db.get(BlacklistEntry, row.blacklist_entry_id)
+    if payload.revoke_sanction:
+        entry.status = BlacklistStatus.REVOKED
+        entry.revoked_by = admin.id
+        entry.revoked_at = utcnow()
+    elif payload.status in {DisputeStatus.RESOLVED, DisputeStatus.DISMISSED}:
+        entry.status = BlacklistStatus.ACTIVE
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@governance_router.get("/blacklist-appeals")
+def list_blacklist_appeals(
+    appeal_status: DisputeStatus | None = Query(default=None, alias="status"),
+    _admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    query = db.query(BlacklistAppeal)
+    if appeal_status:
+        query = query.filter(BlacklistAppeal.status == appeal_status)
+    return query.order_by(BlacklistAppeal.created_at.desc()).limit(200).all()
+
+
+@governance_router.patch("/blacklist/{entry_id}/revoke", response_model=BlacklistEntryOut)
+def revoke_blacklist_entry(
+    entry_id: uuid.UUID,
+    payload: BlacklistRevokeIn,
+    admin: User = Depends(require_platform_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.get(BlacklistEntry, entry_id)
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blacklist entry not found.")
+    if row.status == BlacklistStatus.REVOKED:
+        return row
+    row.status = BlacklistStatus.REVOKED
+    row.revoked_by = admin.id
+    row.revoked_at = utcnow()
+    row.internal_notes = f"{row.internal_notes or ''}\nRevoked: {payload.reason}".strip()
+    db.commit()
+    db.refresh(row)
+    return row
