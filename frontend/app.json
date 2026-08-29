@@ -2,6 +2,7 @@
   "expo": {
     "name": "CoDM Squad Hub",
     "slug": "codm-squad-hub",
+    "scheme": "squadhub",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -10,11 +11,13 @@
       "backgroundColor": "#0A0A0A"
     },
     "android": {
+      "package": "africa.codmsquadhub.app",
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0A"
       }
     },
     "ios": {
+      "bundleIdentifier": "africa.codmsquadhub.app",
       "supportsTablet": false
     },
     "plugins": [
