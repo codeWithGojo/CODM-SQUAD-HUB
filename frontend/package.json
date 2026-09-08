@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "eas:preview:android": "eas build --profile preview --platform android",
     "eas:preview:ios": "eas build --profile preview --platform ios",
-    "test:auth": "node --test tests/session.test.mjs"
+    "test:auth": "node --test tests/session.test.mjs",
+    "eas-build-pre-install": "node scripts/validate-eas-env.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~5.0.5",

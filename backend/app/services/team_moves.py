@@ -55,6 +55,7 @@ def move_player_to_team(
         team_id=to_team_id,
         user_id=user_id,
         role=new_role,
+        in_game_role=old_membership.in_game_role if old_membership else None,
         is_active=True,
     )
     db.add(new_membership)

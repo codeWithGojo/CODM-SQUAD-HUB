@@ -141,3 +141,35 @@ class ReputationEventIn(BaseModel):
     subject_id: uuid.UUID
     delta: int = Field(ge=-25, le=25)
     reason: str = Field(min_length=3, max_length=500)
+
+
+class OrganizationWorkspaceOut(OrganizationOut):
+    can_manage_roster: bool = False
+
+
+class TeamWorkspaceOut(TeamOut):
+    can_manage_roster: bool = False
+
+
+class RosterMemberOut(TeamMemberOut):
+    gamertag: str
+    shid: str
+
+
+class PlayerLookupOut(BaseModel):
+    id: uuid.UUID
+    shid: str
+    gamertag: str
+    preferred_mode: str | None
+    model_config = {"from_attributes": True}
+
+
+class TimelineOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    event_type: str
+    description: str
+    from_team_id: uuid.UUID | None
+    to_team_id: uuid.UUID | None
+    created_at: datetime
+    model_config = {"from_attributes": True}

@@ -90,3 +90,21 @@ def require_chat_participant(db: Session, thread_id: uuid.UUID, user_id: uuid.UU
     if not row:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a participant in this chat.")
     return row
+
+
+def require_editable_roster(db: Session, team_id: uuid.UUID) -> None:
+    from app.core.time import as_utc, utcnow
+    from app.models.enums import RegistrationStatus, TournamentStatus
+    from app.models.tournament import Tournament, TournamentRegistration
+
+    events = (db.query(Tournament).join(TournamentRegistration,
+        TournamentRegistration.tournament_id == Tournament.id)
+        .filter(TournamentRegistration.team_id == team_id,
+                TournamentRegistration.status.in_([RegistrationStatus.PENDING, RegistrationStatus.APPROVED]),
+                Tournament.status.notin_([TournamentStatus.COMPLETED, TournamentStatus.CANCELLED, TournamentStatus.ARCHIVED]))
+        .all())
+    for event in events:
+        if event.status in {TournamentStatus.LIVE, TournamentStatus.ROSTER_LOCKED} or (
+            event.roster_lock_at and as_utc(event.roster_lock_at) <= utcnow()
+        ):
+            raise HTTPException(status_code=409, detail=f"Roster is locked for {event.name}.")

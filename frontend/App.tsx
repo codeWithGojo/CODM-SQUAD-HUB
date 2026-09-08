@@ -1,5 +1,6 @@
 import React,{useState} from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { OrganizationScreen } from './src/screens/OrganizationScreen';
 import { AuthGate } from './src/components/AuthGate';
 import { SafeAreaView,View,StatusBar,StyleSheet } from 'react-native';
 import { colors } from './src/theme/colors';
@@ -16,5 +17,5 @@ import { DetailScreen } from './src/screens/DetailScreens';
 export default function App(){return <SafeAreaProvider><AuthGate><SignedInApp /></AuthGate></SafeAreaProvider>}
 
 function SignedInApp(){const[tab,setTab]=useState<MainTab>('HOME');const[detail,setDetail]=useState<DetailRoute|null>(null);const open=(r:DetailRoute)=>setDetail(r);const screen={HOME:<HomeScreen open={open}/>,COMPETE:<CompeteScreen open={open}/>,HUB:<HubScreen open={open}/>,CAREER:<CareerScreen open={open}/>,MORE:<MoreScreen open={open}/>} as Record<MainTab,React.ReactNode>;
-return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" backgroundColor="#08080A"/>{detail?<DetailScreen route={detail} onBack={()=>setDetail(null)} open={open}/>:<><TopBar onNotifications={()=>open('NOTIFICATIONS')}/><View style={s.body}>{screen[tab]}</View><BottomNav active={tab} onChange={setTab}/></>}</SafeAreaView>}
+return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" backgroundColor="#08080A"/>{detail==='ORGANIZATION'?<OrganizationScreen onBack={()=>setDetail(null)}/>:detail?<DetailScreen route={detail} onBack={()=>setDetail(null)} open={open}/>:<><TopBar onNotifications={()=>open('NOTIFICATIONS')}/><View style={s.body}>{screen[tab]}</View><BottomNav active={tab} onChange={setTab}/></>}</SafeAreaView>}
 const s=StyleSheet.create({safe:{flex:1,backgroundColor:colors.bg},body:{flex:1,backgroundColor:colors.bg}});

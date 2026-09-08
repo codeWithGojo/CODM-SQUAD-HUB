@@ -218,7 +218,42 @@ export interface HillOutputResponse {
   players: HillOutputPlayer[];
 }
 
+export type OrgTier = 'T1' | 'T2' | 'T3' | 'T4';
+export interface OrganizationRecord {
+  id: UUID; name: string; owner_id: UUID; can_manage_roster: boolean;
+}
+export interface SquadRecord {
+  id: UUID; name: string; region_id: UUID; organization_id: UUID | null;
+  org_tier: OrgTier | null; primary_mode: Mode | null; manager_id: UUID | null; can_manage_roster: boolean;
+}
+export interface PlayerLookup { id: UUID; gamertag: string; shid: string; preferred_mode: Mode | null }
+export interface RosterMember {
+  id: UUID; user_id: UUID; gamertag: string; shid: string;
+  role: 'manager' | 'player' | 'substitute'; in_game_role: string | null;
+}
+export interface RosterEvent {
+  id: UUID; user_id: UUID; description: string; event_type: string; created_at: string;
+}
+
 export const platformApi = {
+  organizations: {
+    mine: () => api<OrganizationRecord[]>('/orgs/mine'),
+    create: (name: string) => api<OrganizationRecord>('/orgs', json('POST', { name })),
+  },
+  squads: {
+    mine: () => api<SquadRecord[]>('/teams/mine'),
+    create: (input: { name: string; region_id: UUID; primary_mode: Mode; organization_id: UUID | null; org_tier: OrgTier | null }) =>
+      api<SquadRecord>('/teams', json('POST', input)),
+    members: (teamId: UUID) => api<RosterMember[]>(`/teams/${teamId}/members`),
+    findPlayer: (shid: string) => api<PlayerLookup>(`/teams/players/by-shid/${encodeURIComponent(shid.trim().toUpperCase())}`),
+    add: (teamId: UUID, playerId: UUID, role: 'player' | 'substitute') =>
+      api(`/teams/${teamId}/members`, json('POST', { user_id: playerId, role })),
+    remove: (teamId: UUID, playerId: UUID) => api<void>(`/teams/${teamId}/members/${playerId}`, json('DELETE')),
+    move: (teamId: UUID, playerId: UUID, destination: UUID, role: 'player' | 'substitute') =>
+      api(`/teams/${teamId}/members/${playerId}/move`, json('POST', { to_team_id: destination, new_role: role })),
+    timeline: (teamId: UUID) => api<RosterEvent[]>(`/teams/${teamId}/timeline`),
+    myTimeline: () => api<RosterEvent[]>('/teams/timeline/me'),
+  },
   auth: {
     requestOtp: (phone: string) => api<{ expires_in_seconds: number; dev_code?: string | null }>('/auth/request-otp', json('POST', { phone })),
     verifyOtp: async (phone: string, code: string) => {
