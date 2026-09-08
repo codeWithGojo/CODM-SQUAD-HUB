@@ -135,6 +135,7 @@ def complete_signup(
         region_id=payload.region_id,
         preferred_mode=payload.preferred_mode,
         is_adult=payload.is_adult,
+        guardian_phone=payload.guardian_phone,
         parental_consent_confirmed=payload.parental_consent_confirmed,
         is_platform_admin=payload.phone in settings.admin_phone_set,
     )

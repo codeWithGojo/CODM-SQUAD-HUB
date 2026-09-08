@@ -12,23 +12,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { ApiError, Mode, platformApi, Region } from '../../services/api';
+import { errorMessage, normalizePhone } from '../../services/session';
+import { Mode, platformApi, Region } from '../../services/api';
 import { colors, theme } from '../../theme';
 
 interface Props {
   phone: string;
-  signupToken: string;
-  onComplete: () => Promise<void>;
+  onSubmit: (profile: Record<string, unknown>) => Promise<void>;
   onBack: () => void;
 }
 
-export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) {
+export function SignupScreen({ phone, onSubmit, onBack }: Props) {
   const [regions, setRegions] = useState<Region[]>([]);
   const [gamertag, setGamertag] = useState('');
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('NG');
   const [mode, setMode] = useState<Mode>('MP');
-  const [isAdult, setIsAdult] = useState(true);
+  const [isAdult, setIsAdult] = useState<boolean | null>(null);
+  const [guardianPhone, setGuardianPhone] = useState('');
+  const [regionAttempt, setRegionAttempt] = useState(0);
   const [parentalConsent, setParentalConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +47,7 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
     return () => {
       active = false;
     };
-  }, []);
+  }, [regionAttempt]);
 
   const selectedRegion = useMemo(
     () => regions.find((region) => region.code === countryCode.trim().toUpperCase()),
@@ -53,6 +55,14 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
   );
 
   const submit = async () => {
+    if (loading) return;
+    if (isAdult === null) { setError('Choose your age category.'); return; }
+    let normalizedGuardian: string | null = null;
+    if (!isAdult) {
+      try { normalizedGuardian = normalizePhone(guardianPhone); }
+      catch { setError('Enter your parent or guardian’s phone number with country code.'); return; }
+      if (normalizedGuardian === phone) { setError('Guardian phone must differ from your own number.'); return; }
+    }
     if (gamertag.trim().length < 3) {
       setError('Gamertag must be at least 3 characters.');
       return;
@@ -62,24 +72,23 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
       return;
     }
     if (!isAdult && !parentalConsent) {
-      setError('Confirmed parental consent is required for a minor account.');
+      setError('A parent or guardian must consent before you create an account.');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await platformApi.auth.completeSignup(signupToken, {
-        phone,
+      await onSubmit({
         gamertag: gamertag.trim(),
         email: email.trim() || null,
         region_id: selectedRegion.id,
         preferred_mode: mode,
         is_adult: isAdult,
+        guardian_phone: normalizedGuardian,
         parental_consent_confirmed: !isAdult && parentalConsent,
       });
-      await onComplete();
     } catch (signupError) {
-      setError(signupError instanceof ApiError ? signupError.message : 'Could not finish signup.');
+      setError(errorMessage(signupError, 'Could not finish signup.'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +99,7 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
       <StatusBar barStyle="light-content" backgroundColor={colors.black} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={onBack} accessibilityRole="button">
+          <Pressable onPress={onBack} disabled={loading} accessibilityRole="button">
             <Text style={styles.back}>← Use another number</Text>
           </Pressable>
           <Text style={styles.kicker}>PLAYER PASSPORT</Text>
@@ -107,7 +116,7 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
             accessibilityLabel="Gamertag"
           />
           <Input
-            label="Email (optional, used for payments)"
+            label="Email (optional)"
             placeholder="you@example.com"
             value={email}
             onChangeText={setEmail}
@@ -129,6 +138,7 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
             {selectedRegion ? `${selectedRegion.name} • ${selectedRegion.zone}` : regions.length ? 'Use a two-letter African country code.' : 'Loading countries…'}
           </Text>
 
+          {!regions.length ? <Button title="Retry loading countries" variant="ghost" onPress={() => setRegionAttempt(value => value + 1)} /> : null}
           <Text style={styles.label}>Preferred mode</Text>
           <View style={styles.row}>
             {(['MP', 'BR'] as const).map((value) => (
@@ -149,7 +159,7 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
             <Pressable
               onPress={() => setIsAdult(true)}
               accessibilityRole="button"
-              accessibilityState={{ selected: isAdult }}
+              accessibilityState={{ selected: isAdult === true }}
               style={[styles.choice, isAdult ? styles.choiceActive : null]}
             >
               <Text style={[styles.choiceText, isAdult ? styles.choiceTextActive : null]}>18 or older</Text>
@@ -157,14 +167,16 @@ export function SignupScreen({ phone, signupToken, onComplete, onBack }: Props) 
             <Pressable
               onPress={() => setIsAdult(false)}
               accessibilityRole="button"
-              accessibilityState={{ selected: !isAdult }}
-              style={[styles.choice, !isAdult ? styles.choiceActive : null]}
+              accessibilityState={{ selected: isAdult === false }}
+              style={[styles.choice, isAdult === false ? styles.choiceActive : null]}
             >
-              <Text style={[styles.choiceText, !isAdult ? styles.choiceTextActive : null]}>Under 18</Text>
+              <Text style={[styles.choiceText, isAdult === false ? styles.choiceTextActive : null]}>Under 18</Text>
             </Pressable>
           </View>
 
-          {!isAdult ? (
+          {isAdult === false ? <Input label="Parent or guardian phone" placeholder="+234…" keyboardType="phone-pad"
+            value={guardianPhone} onChangeText={setGuardianPhone} accessibilityLabel="Parent or guardian phone number" /> : null}
+          {isAdult === false ? (
             <Pressable
               onPress={() => setParentalConsent((value) => !value)}
               accessibilityRole="checkbox"

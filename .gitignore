@@ -22,3 +22,8 @@ mobile/node_modules/
 
 # Logs
 *.log
+
+# Local mobile configuration and bundle checks
+frontend/.env
+frontend/.env.local
+frontend/dist-auth-check/

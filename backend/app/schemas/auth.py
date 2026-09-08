@@ -40,11 +40,21 @@ class CompleteSignupIn(BaseModel):
     preferred_mode: Mode | None = None
     is_adult: bool
     parental_consent_confirmed: bool = False
+    guardian_phone: str | None = Field(default=None, max_length=20)
 
     @model_validator(mode="after")
     def require_consent_if_minor(self):
         if not self.is_adult and not self.parental_consent_confirmed:
             raise ValueError("Parental consent must be confirmed for players under 18.")
+        if not self.is_adult:
+            guardian = (self.guardian_phone or '').strip()
+            if not PHONE_PATTERN.fullmatch(guardian):
+                raise ValueError("Guardian phone must use E.164 format for players under 18.")
+            if guardian == self.phone:
+                raise ValueError("Guardian phone must differ from the player's phone.")
+            self.guardian_phone = guardian
+        else:
+            self.guardian_phone = None
         return self
 
 

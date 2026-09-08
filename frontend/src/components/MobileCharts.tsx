@@ -21,7 +21,7 @@ export function SparkLine({compact=false}:{compact?:boolean}){
     <View style={[s.seg,{left:'53%',bottom:'40%',width:'18%',transform:[{rotate:'8deg'}]}]}/>
     <View style={[s.seg,{left:'69%',bottom:'37%',width:'15%',transform:[{rotate:'-23deg'}]}]}/>
     <View style={[s.seg,{left:'81%',bottom:'51%',width:'15%',transform:[{rotate:'8deg'}]}]}/>
-    {['4%','20%','36%','54%','70%','83%','95%'].map((left,i)=><View key={left} style={[s.point,{left,bottom:[22,29,19,39,35,49,53][i]+'%'}]}/>) }
+    {['4%','20%','36%','54%','70%','83%','95%'].map((left,i)=><View key={left} style={[s.point,{left:left as `${number}%`,bottom:`${[22,29,19,39,35,49,53][i]}%` as `${number}%`}]}/>) }
   </View>
 }
 

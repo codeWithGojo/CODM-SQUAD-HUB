@@ -5,6 +5,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { SquadScreen } from '../screens/SquadScreen';
 import { TransferScreen } from '../screens/TransferScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { DetailRoute } from '../types/navigation';
 import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
@@ -25,9 +26,10 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
 
 interface Props {
   onLogout: () => void;
+  open: (route: DetailRoute) => void;
 }
 
-export function MainTabs({ onLogout }: Props) {
+export function MainTabs({ onLogout, open }: Props) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -41,7 +43,7 @@ export function MainTabs({ onLogout }: Props) {
         ),
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home">{() => <HomeScreen open={open} />}</Tab.Screen>
       <Tab.Screen name="Squad" component={SquadScreen} />
       <Tab.Screen name="Transfer" component={TransferScreen} />
       <Tab.Screen name="Profile">

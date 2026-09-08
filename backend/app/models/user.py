@@ -47,6 +47,7 @@ class User(Base):
     region: Mapped[Region | None] = relationship(back_populates="users")
 
     is_adult: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    guardian_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     parental_consent_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     verification_status: Mapped[VerificationStatus] = mapped_column(
         SAEnum(VerificationStatus), default=VerificationStatus.UNVERIFIED, nullable=False

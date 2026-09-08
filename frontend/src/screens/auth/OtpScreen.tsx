@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { colors, theme } from '../../theme';
-import { ApiError } from '../../services/api';
+import { errorMessage } from '../../services/session';
 
 interface Props {
   phone: string;
@@ -43,7 +43,7 @@ export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props)
     }
 
     const next = [...code];
-    next[index] = text;
+    next[index] = text.replace(/\D/g, '').slice(-1);
     setCode(next);
 
     if (text && index < 5) {
@@ -59,19 +59,20 @@ export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props)
 
   const handleVerify = async () => {
     const full = code.join('');
-    if (full.length < 6) return;
+    if (loading || !/^\d{6}$/.test(full)) return;
     setError('');
     setLoading(true);
     try {
       await onVerify(full);
     } catch (verifyError) {
-      setError(verifyError instanceof ApiError ? verifyError.message : 'Could not verify this code.');
+      setError(errorMessage(verifyError, 'Could not verify this code.'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
+    if (loading) return;
     setError('');
     setLoading(true);
     try {
@@ -79,7 +80,7 @@ export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props)
       setCode(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
     } catch (resendError) {
-      setError(resendError instanceof ApiError ? resendError.message : 'Could not resend the code.');
+      setError(errorMessage(resendError, 'Could not resend the code.'));
     } finally {
       setLoading(false);
     }
@@ -93,13 +94,13 @@ export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props)
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.content}>
-          <Pressable onPress={onBack} accessibilityRole="button" style={styles.backButton}>
+          <Pressable onPress={onBack} disabled={loading} accessibilityRole="button" style={styles.backButton}>
             <Text style={styles.back}>← Back</Text>
           </Pressable>
 
           <Text style={styles.title}>Enter code</Text>
           <Text style={styles.subtitle}>
-            We sent a 6-digit code to{'\n'}
+            {localDevCode ? 'Development sign-in for' : 'Enter the 6-digit code sent to'}{'\n'}
             <Text style={styles.phone}>{phone}</Text>
           </Text>
 
@@ -116,6 +117,9 @@ export function OtpScreen({ phone, devCode, onVerify, onResend, onBack }: Props)
                 onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
                 keyboardType="number-pad"
                 maxLength={i === 0 ? 6 : 1}
+                editable={!loading}
+                textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                autoComplete={i === 0 ? 'sms-otp' : 'off'}
                 selectTextOnFocus
                 accessibilityLabel={`Verification code digit ${i + 1}`}
               />
@@ -185,10 +189,13 @@ const styles = StyleSheet.create({
   otpRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 6,
     marginBottom: theme.spacing.xl,
   },
   otpBox: {
-    width: 48,
+    flex: 1,
+    maxWidth: 48,
+    minWidth: 0,
     height: 56,
     borderRadius: theme.radius.md,
     backgroundColor: colors.blackCard,

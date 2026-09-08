@@ -9,32 +9,32 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { errorMessage } from '../../services/session';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { colors, theme } from '../../theme';
 
 interface Props {
-  onContinue: (phone: string) => void;
+  onContinue: (phone: string) => Promise<void>;
+  notice?: string;
 }
 
-export function PhoneScreen({ onContinue }: Props) {
+export function PhoneScreen({ onContinue, notice }: Props) {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleContinue = async () => {
-    const cleaned = phone.replace(/\s/g, '');
-    if (cleaned.length < 10) {
-      setError('Enter a valid phone number');
-      return;
-    }
+    if (loading) return;
     setError('');
     setLoading(true);
-    // In real app: call /api/v1/auth/request-otp
-    setTimeout(() => {
+    try {
+      await onContinue(phone);
+    } catch (error) {
+      setError(errorMessage(error, 'Could not request a code. Try again.'));
+    } finally {
       setLoading(false);
-      onContinue(cleaned.startsWith('+') ? cleaned : `+234${cleaned.replace(/^0/, '')}`);
-    }, 800);
+    }
   };
 
   return (
@@ -60,6 +60,7 @@ export function PhoneScreen({ onContinue }: Props) {
 
           <View style={styles.form}>
             <Text style={styles.sectionTitle}>Sign in with phone</Text>
+            {notice ? <Text style={{ color: colors.gray300, marginBottom: 16 }} accessibilityRole="alert">{notice}</Text> : null}
             <Input
               label="Phone number"
               placeholder="+234 801 234 5678"
@@ -67,6 +68,9 @@ export function PhoneScreen({ onContinue }: Props) {
               value={phone}
               onChangeText={setPhone}
               error={error}
+              autoComplete="tel"
+              accessibilityLabel="Phone number with country code"
+              editable={!loading}
               autoFocus
             />
             <Button

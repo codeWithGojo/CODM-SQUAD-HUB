@@ -2,67 +2,86 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const runtimeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-export const API_BASE_URL = (runtimeEnv?.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '');
-const TOKEN_KEY = 'codm-squad-hub.access-token';
+import { TokenStore } from './tokenStore';
 
-let memoryToken: string | null = null;
+declare const process: { env: { EXPO_PUBLIC_API_URL?: string } };
+// Expo only inlines public variables accessed with this exact static syntax.
+export const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '');
+const TOKEN_KEY = 'codm-squad-hub.access-token';
+const tokens = new TokenStore({
+  read: () => Platform.OS === 'web' ? AsyncStorage.getItem(TOKEN_KEY) : SecureStore.getItemAsync(TOKEN_KEY),
+  write: async token => {
+    if (Platform.OS === 'web') {
+      if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
+      else await AsyncStorage.removeItem(TOKEN_KEY);
+    } else {
+      if (token) await SecureStore.setItemAsync(TOKEN_KEY, token);
+      else await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await AsyncStorage.removeItem(TOKEN_KEY);
+    }
+  },
+});
+export const setAccessToken = tokens.write;
+export const getAccessToken = tokens.read;
+const expiredListeners = new Set<() => void>();
+export function onSessionExpired(listener: () => void): () => void {
+  expiredListeners.add(listener);
+  return () => { expiredListeners.delete(listener); };
+}
 
 export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly payload: unknown,
-    message: string,
-  ) {
+  public readonly status: number;
+  public readonly payload: unknown;
+  constructor(status: number, payload: unknown, message: string) {
     super(message);
+    this.status = status;
+    this.payload = payload;
     this.name = 'ApiError';
   }
 }
 
-export async function setAccessToken(token: string | null): Promise<void> {
-  memoryToken = token;
-  if (Platform.OS === 'web') {
-    if (token) await AsyncStorage.setItem(TOKEN_KEY, token);
-    else await AsyncStorage.removeItem(TOKEN_KEY);
-    return;
+function responseMessage(payload: unknown, status: number): string {
+  if (typeof payload === 'object' && payload && 'detail' in payload) {
+    const detail = (payload as { detail: unknown }).detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return detail.map(row => {
+      const item = row as { msg?: string; loc?: string[] };
+      return [item.loc?.filter(part => part !== 'body').join('.'), item.msg].filter(Boolean).join(': ');
+    }).join('\n');
   }
-  if (token) await SecureStore.setItemAsync(TOKEN_KEY, token);
-  else await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await AsyncStorage.removeItem(TOKEN_KEY);
-}
-
-export async function getAccessToken(): Promise<string | null> {
-  if (memoryToken) return memoryToken;
-  if (Platform.OS === 'web') {
-    memoryToken = await AsyncStorage.getItem(TOKEN_KEY);
-    return memoryToken;
-  }
-  memoryToken = await SecureStore.getItemAsync(TOKEN_KEY);
-  if (!memoryToken) {
-    const legacyToken = await AsyncStorage.getItem(TOKEN_KEY);
-    if (legacyToken) {
-      await SecureStore.setItemAsync(TOKEN_KEY, legacyToken);
-      await AsyncStorage.removeItem(TOKEN_KEY);
-      memoryToken = legacyToken;
-    }
-  }
-  return memoryToken;
+  return `Request failed (${status}). Please try again.`;
 }
 
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAccessToken();
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type') && options.body) headers.set('Content-Type', 'application/json');
+  const usesSession = !!token && !headers.has('Authorization') && !path.startsWith('/auth/');
   if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
-  if (response.status === 204) return undefined as T;
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload: unknown = contentType.includes('application/json') ? await response.json() : await response.text();
-  if (!response.ok) {
-    const detail = typeof payload === 'object' && payload && 'detail' in payload ? String((payload as { detail: unknown }).detail) : `Request failed (${response.status})`;
-    throw new ApiError(response.status, payload, detail);
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort();
+  options.signal?.addEventListener('abort', forwardAbort);
+  if (options.signal?.aborted) controller.abort();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, signal: controller.signal });
+    if (response.status === 204) return undefined as T;
+    const contentType = response.headers.get('content-type') ?? '';
+    const payload: unknown = contentType.includes('application/json') ? await response.json() : await response.text();
+    if (!response.ok) {
+      if (usesSession && response.status === 401 && token === await getAccessToken()) {
+        expiredListeners.forEach(listener => listener());
+      }
+      throw new ApiError(response.status, payload, responseMessage(payload, response.status));
+    }
+    return payload as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new Error(controller.signal.aborted ? 'The request timed out. Please try again.' : 'Could not reach Squad Hub. Check your connection and try again.');
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', forwardAbort);
   }
-  return payload as T;
 }
 
 function json(method: string, body?: unknown): RequestInit {
@@ -201,10 +220,10 @@ export interface HillOutputResponse {
 
 export const platformApi = {
   auth: {
-    requestOtp: (phone: string) => api<{ expires_in_seconds: number; dev_code?: string }>('/auth/request-otp', json('POST', { phone })),
+    requestOtp: (phone: string) => api<{ expires_in_seconds: number; dev_code?: string | null }>('/auth/request-otp', json('POST', { phone })),
     verifyOtp: async (phone: string, code: string) => {
       const result = await api<TokenResponse>('/auth/verify-otp', json('POST', { phone, code }));
-      if (!result.is_new_user) await setAccessToken(result.access_token);
+      // The session controller persists only completed player credentials.
       return result;
     },
     completeSignup: async (signupToken: string, profile: Record<string, unknown>) => {
@@ -212,7 +231,6 @@ export const platformApi = {
         ...json('POST', profile),
         headers: { Authorization: `Bearer ${signupToken}`, 'Content-Type': 'application/json' },
       });
-      await setAccessToken(result.access_token);
       return result;
     },
     me: () => api<CurrentUser>('/auth/me'),
