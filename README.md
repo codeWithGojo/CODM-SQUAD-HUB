@@ -1,5 +1,18 @@
 # CoDM Squad Hub
 
+## September 8, 2026: multi-game web organizer
+
+Today's web application is in [web/](web/README.md). It adds separate account/game workspaces, editable game presets, player records, squads, league/knockout/placement competitions, result review, rankings, internal roster proposals, training and guides. The existing `backend/` and `frontend/` remain separate codebases; the new web app is not connected to that FastAPI backend.
+
+Validation for this source: 11 domain/database tests plus 1 compiled-artifact test passed, TypeScript passed, and the compiled Worker passed offline authentication/origin/persistence/isolation/conflict checks. Browser interaction and real hosted authentication/database testing remain outstanding.
+
+The web app currently targets Sites/Cloudflare with authenticated dispatcher identity and a D1 database migration. It is **not a drop-in Vercel deployment**. Vercel requires server-verified authentication, a supported database adapter, and hosting/build configuration before deployment.
+
+Remaining public-platform work: shared player/organizer accounts and memberships; verified identity/consent and contracts; real-time chat; AI VOD/weekly reviews; payments/subscriptions/crowdfunding/store fulfillment; public CRA moderation and appeals; verified publisher/statistics feeds. Additional organizer limitations include manual loan returns, no evidence uploads or import/restore, and no byes or group-to-knockout formats. See [web/README.md](web/README.md) for the full scope and limitations.
+
+The older implementation summary below describes the retained backend/mobile code. It does not imply those integrations are deployed or connected to the new web app.
+
+
 CoDM Squad Hub is a mobile-first competitive infrastructure platform for the African Call of Duty: Mobile scene. It combines player identity, teams and organizations, official competition records, rankings, training, commerce, communications, and governance in one system.
 
 ## Implemented platform scope
