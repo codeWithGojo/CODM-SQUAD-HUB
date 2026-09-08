@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0 Vercel web adapter — 8 September 2026
+
+### Added
+
+- Server-verified organizer sessions for the web app: HttpOnly HMAC cookie `csh_session`, `/api/auth/register`, `/api/auth/login`, `/api/auth/me`, `/api/auth/logout`
+- Portable workspace database adapter: Cloudflare D1 when `env.DB` is present, Postgres when `DATABASE_URL` is set, optional local `SQLITE_PATH`
+- Postgres schema for `workspaces` and `organizer_accounts`, plus `scripts/migrate-vercel.mjs` and `web/vercel.json`
+- Next.js alias so `cloudflare:workers` does not break a Vercel Node build
+- Hub sign-in panel for email/password while retaining ChatGPT Sites sign-in
+- Unit tests for session HMAC, password hashes, account isolation, SQL rewrite and anonymous 401s
+
+### Honest status
+
+- No Vercel project was created from this workspace and hosted auth/database checks remain outstanding
+- Public accounts, live services, CRA governance and browser QA are still separate workstreams
+
+
 ## 1.0.1 hill-output analytics — 28 August 2026
 
 ### Added

@@ -6,7 +6,7 @@ Today's web application is in [web/](web/README.md). It adds separate account/ga
 
 Validation for this source: 11 domain/database tests plus 1 compiled-artifact test passed, TypeScript passed, and the compiled Worker passed offline authentication/origin/persistence/isolation/conflict checks. Browser interaction and real hosted authentication/database testing remain outstanding.
 
-The web app currently targets Sites/Cloudflare with authenticated dispatcher identity and a D1 database migration. It is **not a drop-in Vercel deployment**. Vercel requires server-verified authentication, a supported database adapter, and hosting/build configuration before deployment.
+The web app still targets Sites/Cloudflare with authenticated dispatcher identity and a D1 database migration. A Vercel adapter is now in the tree: HMAC session cookies, a Postgres/`DATABASE_URL` driver, Next.js Node build config, and organizer email/password routes. See [docs/VERCEL.md](docs/VERCEL.md). It is still **not** a live hosted Vercel deployment — `DATABASE_URL` and `SESSION_SECRET` must be supplied on a Vercel project whose Root Directory is `web`.
 
 Remaining public-platform work: shared player/organizer accounts and memberships; verified identity/consent and contracts; real-time chat; AI VOD/weekly reviews; payments/subscriptions/crowdfunding/store fulfillment; public CRA moderation and appeals; verified publisher/statistics feeds. Additional organizer limitations include manual loan returns, no evidence uploads or import/restore, and no byes or group-to-knockout formats. See [web/README.md](web/README.md) for the full scope and limitations.
 

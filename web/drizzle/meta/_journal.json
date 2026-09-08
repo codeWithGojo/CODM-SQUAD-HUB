@@ -8,6 +8,13 @@
       "when": 1788852173251,
       "tag": "0000_public_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788859000000,
+      "tag": "0001_organizer_accounts",
+      "breakpoints": true
     }
   ]
 }

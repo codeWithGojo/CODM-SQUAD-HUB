@@ -44,7 +44,9 @@ node --test tests/workspace.test.mjs
 
 The retained Vite/Vinext application targets Cloudflare Workers through Sites. `.openai/hosting.json` preserves the existing Site ID and enables its logical `DB` binding. `drizzle/0000_public_skrulls.sql` creates the database schema; apply it through the normal Sites migration/deployment flow. Schema creation never runs inside an application request.
 
-`app/api/workspace/route.ts` requires the authenticated user ID forwarded by the Sites dispatcher. It does not trust an owner ID supplied in JSON. Do not expose a raw Worker directly on the public internet with user-spoofable authentication headers. For a different host such as Vercel, provide equivalent server-verified authentication and a database adapter first; this archive is not a drop-in static Vercel upload.
+`app/api/workspace/route.ts` requires a server-verified owner. On Sites that is the dispatcher header `oai-authenticated-user-id`. On Vercel that is the HttpOnly HMAC session cookie `csh_session` from `/api/auth/register` or `/api/auth/login`. It does not trust an owner ID supplied in JSON. Do not expose a raw Worker directly on the public internet with user-spoofable authentication headers.
+
+Vercel is no longer a missing adapter. Set Root Directory to `web`, configure `DATABASE_URL` (Postgres) and `SESSION_SECRET`, and deploy with `web/vercel.json`. Schema is applied from `web/drizzle/postgres/` by `scripts/migrate-vercel.mjs`. Cloudflare D1 remains the Sites path. Details: [docs/VERCEL.md](../docs/VERCEL.md). This is still not a drop-in static upload.
 
 The current live Site is not changed merely by downloading or uploading this source archive. Deploy the saved build with its D1 migration before expecting online saves to work.
 
