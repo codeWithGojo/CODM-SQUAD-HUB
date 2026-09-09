@@ -57,7 +57,7 @@ type NodeSqlite = {
   prepare(sql: string): {
     get(...params: unknown[]): Record<string, unknown> | undefined;
     all(...params: unknown[]): Record<string, unknown>[];
-    run(...params: unknown[]): { changes: number };
+    run(...params: unknown[]): { changes: number | bigint };
   };
 };
 
@@ -77,7 +77,7 @@ export function wrapNodeSqlite(db: NodeSqlite): Database {
           return { results: db.prepare(sql).all(...this.params) as T[] };
         },
         async run() {
-          return { meta: { changes: db.prepare(sql).run(...this.params).changes } };
+          return { meta: { changes: Number(db.prepare(sql).run(...this.params).changes) } };
         },
       };
       return statement;

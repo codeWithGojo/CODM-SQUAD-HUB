@@ -15,7 +15,7 @@ function bytesToB64Url(bytes: Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function b64UrlToBytes(value: string): Uint8Array {
+function b64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   const pad = (4 - (value.length % 4)) % 4;
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(pad);
   const binary = atob(padded);
@@ -36,7 +36,7 @@ export function sessionSecret(): string | null {
   return secret && secret.length >= 16 ? secret : null;
 }
 
-async function hmac(secret: string, payload: string): Promise<Uint8Array> {
+async function hmac(secret: string, payload: string): Promise<Uint8Array<ArrayBuffer>> {
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
@@ -105,7 +105,11 @@ export function clearSessionCookie(req: Request): string {
   return sessionCookie("deleted", req, 0);
 }
 
-async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+async function pbkdf2(
+  password: string,
+  salt: Uint8Array<ArrayBuffer>,
+  iterations: number,
+): Promise<Uint8Array<ArrayBuffer>> {
   const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   return new Uint8Array(await crypto.subtle.deriveBits(
     { name: "PBKDF2", hash: "SHA-256", salt, iterations },

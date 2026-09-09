@@ -13,7 +13,10 @@ export async function POST(req: Request) {
     const parsed = await readJson(req, 8_192);
     if ("error" in parsed) return parsed.error;
     const body = (parsed.data ?? {}) as { email?: unknown; password?: unknown };
-    const account = await authenticateAccount(await getDatabase(), body);
+    const account = await authenticateAccount(await getDatabase(), {
+      email: body.email,
+      password: body.password,
+    });
     const token = await signSession({ uid: account.id, email: account.email, name: account.display_name });
     return json(
       { id: account.id, email: account.email, displayName: account.display_name, method: "session" },
