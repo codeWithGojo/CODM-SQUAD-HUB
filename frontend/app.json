@@ -2,6 +2,12 @@
   "expo": {
     "name": "CoDM Squad Hub",
     "slug": "codm-squad-hub",
+    "owner": "favour66s-team",
+    "extra": {
+      "eas": {
+        "projectId": "8104ffbc-a8ed-4e8e-aafb-f6724fd386b3"
+      }
+    },
     "scheme": "squadhub",
     "version": "0.1.0",
     "orientation": "portrait",

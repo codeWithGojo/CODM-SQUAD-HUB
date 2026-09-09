@@ -11,3 +11,74 @@
 @media(max-width:760px){.sh-app{display:block}.sh-sidebar{position:fixed;left:0;top:0;width:min(300px,85vw);transform:translateX(-100%);transition:transform .16s;z-index:60}.sh-sidebar.is-open{transform:translateX(0)}.sh-mobile{display:grid;place-items:center;min-width:42px;height:44px;background:transparent;color:var(--sh-text);border:1px solid var(--sh-line);border-radius:6px}.sh-brand .sh-mobile{margin-left:auto}.sh-backdrop{display:block;position:fixed;inset:0;background:#0009;z-index:50;border:0}.sh-top{padding:12px 16px;gap:10px}.sh-top>div{flex:1;gap:8px}.sh-breadcrumb{font-size:13px}.sh-breadcrumb>svg{display:none}.sh-top>.sh-button{padding:10px}.sh-top>.sh-button span{display:none}.sh-content{padding:24px 16px}.sh-heading{display:block;margin-bottom:24px}.sh-heading .sh-actions{margin-top:18px}.sh-stats{grid-template-columns:1fr 1fr}.sh-stats strong{font-size:30px}.sh-stats>div{padding:20px 16px}.sh-panel{padding:18px}.sh-panel>header{flex-wrap:wrap}.sh-panel>header .sh-button{min-height:40px}.sh-row{align-items:flex-start}.sh-match{padding:16px}.sh-list-row{flex-wrap:wrap}.sh-list-row time{white-space:normal;font-size:12px}.sh-list-row>div{min-width:90px}.sh-dialog{padding:20px}.sh-task{flex-wrap:wrap}.sh-task>.sh-badge{margin-left:36px}.sh-bottom{flex-direction:column;gap:8px}.sh-toast{right:16px;bottom:16px}.sh-skeletons{grid-template-columns:1fr}.sh-filterbar label{width:100%}.sh-filterbar select,.sh-filterbar input{width:100%}}
 @media(prefers-reduced-motion:reduce){.sh-sidebar{transition:none}}
 .sh-account{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sh-muted)}.sh-account .sh-button{min-height:36px;padding:6px 10px}.sh-auth-panel{max-width:520px}.sh-auth-panel .sh-button,.sh-auth-panel a{margin-top:12px;justify-self:start}
+
+/* SquadHub competition console. Brand colour is separate from game identity. */
+.sh-app{--sh-bg:#0b0d11;--sh-panel:#12151c;--sh-line:#292e39;--sh-text:#f3f5fa;--sh-muted:#a6afbf;--sh-accent:#83adff!important;grid-template-columns:224px minmax(0,1fr);font-family:Arial,Helvetica,sans-serif;color-scheme:dark}
+.sh-app *{scrollbar-width:thin;scrollbar-color:#373e4c transparent}
+.sh-sidebar{background:#101218;padding:22px 12px 16px}
+.sh-brand{margin:0 10px 26px;gap:10px}
+.sh-brand>span{background:#2563eb;color:white;border-radius:5px;width:32px;height:34px}
+.sh-brand strong{font-size:21px;letter-spacing:-.05em}
+.sh-game-label{font-size:12px;font-weight:700;letter-spacing:.12em;color:#818da3;padding:0 10px}
+.sh-game{margin:10px 6px 20px;gap:6px;color:var(--sh-muted)}
+.sh-game select{min-height:42px;border-radius:5px;background:#181c25;padding:9px;font-size:14px}
+.sh-sidebar nav{gap:2px}
+.sh-sidebar nav button{min-height:40px;border-radius:4px;padding:8px 12px;gap:10px;font-size:14px;border-left:2px solid transparent}
+.sh-sidebar nav button.selected{background:#192a48;color:#b8d0ff;border-left-color:#689cff}
+.sh-sidebar nav button:hover{background:#202632}
+.sh-sidebar nav button:nth-child(2),.sh-sidebar nav button:nth-child(9),.sh-sidebar nav button:last-child{margin-top:12px;border-top:1px solid var(--sh-line);padding-top:12px}
+.sh-sidebar footer{padding:20px 10px 0;gap:7px}
+.sh-sidebar footer a{color:#919bad}
+.sh-top{background:#101218;padding:12px 28px;min-height:66px}
+.sh-top>div{gap:12px}
+.sh-game-chip{background:#1a2333;border-color:#334663;border-radius:4px;font-size:12px;letter-spacing:.07em;padding:5px 8px}
+.sh-content{padding:28px;max-width:1480px;min-height:calc(100dvh - 66px)}
+.sh-heading{margin-bottom:24px;gap:16px;align-items:end}
+.sh-heading p{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8f9bb0;margin-bottom:8px}
+.sh-heading h1{font-size:clamp(26px,2.5vw,34px);font-weight:750;letter-spacing:-.04em}
+.sh-app h2{font-size:18px;letter-spacing:-.025em;font-weight:700}
+.sh-app h3{font-size:16px;letter-spacing:-.015em}
+.sh-button,.sh-primary{border-radius:5px;min-height:40px;padding:8px 13px;font-size:14px!important;line-height:1.4}
+.sh-button{background:#1b202a;border-color:#343c4a}
+.sh-primary{background:#2563eb;border-color:#427df6;color:#fff}
+.sh-primary:hover{background:#3473fa;filter:none}
+.sh-stats{gap:12px;border:0;border-radius:0;background:none;margin-bottom:22px;grid-template-columns:repeat(4,minmax(0,1fr))}
+.sh-stats>div{padding:20px;border:1px solid var(--sh-line);border-radius:6px;gap:10px;flex-direction:column-reverse;background:#141821}
+.sh-stats strong{font-size:34px;font-weight:700;letter-spacing:-.045em}
+.sh-stats span{font-size:14px;color:#a9b4c7}
+.sh-stats>div:first-child{border-top:2px solid #699cff}
+.sh-columns{grid-template-columns:minmax(0,1.65fr) minmax(270px,1fr);gap:18px;align-items:start}
+.sh-panel{border-radius:6px;padding:20px;margin-bottom:18px;background:#12151c}
+.sh-panel>header{margin:-20px -20px 18px;padding:15px 20px;border-bottom:1px solid var(--sh-line);min-height:58px;background:#161a23;border-radius:6px 6px 0 0}
+.sh-empty{min-height:145px;padding:20px 4px;align-items:flex-start}
+.sh-empty p{font-size:16px;max-width:48ch;margin-bottom:12px}
+.sh-checklist{gap:10px}
+.sh-checklist li>span{border-radius:5px;width:24px;height:24px;background:#192231}
+.sh-checklist button{font-size:14px;min-height:40px}
+.sh-method{margin-top:18px;font-size:14px;line-height:1.6}
+.sh-list-row{padding:13px 0}
+.sh-match{border-radius:5px;background:#171c26;padding:18px}
+.sh-table-wrap thead{background:#191f2a}
+.sh-table-wrap thead th{font-size:12px;color:#a8b7d0;font-weight:700}
+.sh-table-wrap tbody tr:hover{background:#19202c}
+.sh-table-wrap th,.sh-table-wrap td{padding:12px}
+.sh-player-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px}
+.sh-player{background:#151b26;border-radius:5px;padding:20px;border-top:3px solid #5088fa}
+.sh-player-initials{font-size:64px;color:#d9e6ff;padding:24px 0 18px;font-weight:800;letter-spacing:-.06em}
+.sh-player h2{font-size:24px}
+.sh-player dl{margin:20px 0}
+.sh-player .sh-button{width:100%}
+.sh-trophy{border-radius:6px;background:#1c1b16;border-color:#655738}
+.sh-auth-panel{margin:32px auto;max-width:460px;padding:26px}
+.sh-auth-panel>header{margin:-26px -26px 20px;padding:20px 26px}
+.sh-auth-panel .sh-method{margin-top:0}
+.sh-room-form input,.sh-room-form textarea{width:100%;min-height:46px;background:#0e121a;border:1px solid #465269;border-radius:5px;padding:11px 12px;color:#f3f5fa;font-size:16px}
+.sh-auth-panel .sh-room-form button{width:100%;min-height:44px}
+.sh-auth-panel>.sh-button{width:100%;margin-top:16px}
+.sh-dialog{background:#141923;border-radius:8px;border-color:#3c485d}
+.sh-dialog h2{font-size:22px}
+.sh-bottom{margin-top:24px;padding-top:16px;font-size:12px}
+.sh-toast{background:#172f28;color:#bbf4d8;border:1px solid #3e7360;border-radius:5px}
+.sh-skeletons>div{background:#1b2331;border-radius:6px}
+@media(max-width:1100px){.sh-columns{grid-template-columns:1fr}.sh-top{padding:12px 22px}.sh-content{padding:24px 22px}.sh-account>span{max-width:140px;overflow-wrap:anywhere}}
+@media(max-width:760px){.sh-app{display:block}.sh-sidebar{width:min(280px,86vw)}.sh-top{padding:10px 14px;flex-wrap:wrap;gap:8px}.sh-top>div{flex:initial;min-width:0}.sh-top>.sh-actions{margin-left:auto;gap:6px}.sh-top .sh-actions>.sh-button{width:40px;padding:8px}.sh-top .sh-actions>.sh-button span{display:none}.sh-breadcrumb{display:none}.sh-account>span{display:none}.sh-account .sh-button{font-size:12px!important;min-height:40px}.sh-content{padding:22px 16px}.sh-heading{margin-bottom:20px}.sh-heading h1{font-size:28px}.sh-heading .sh-actions:empty{display:none}.sh-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sh-stats>div{padding:16px;gap:8px}.sh-stats strong{font-size:30px}.sh-panel{padding:18px}.sh-panel>header{margin:-18px -18px 16px;padding:14px 18px}.sh-columns{grid-template-columns:minmax(0,1fr)}.sh-auth-panel{margin:16px auto}.sh-button,.sh-primary{min-height:44px}.sh-checklist button{min-height:44px}.sh-bottom{gap:6px}.sh-list-row time{white-space:normal}}

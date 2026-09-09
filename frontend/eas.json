@@ -5,6 +5,9 @@
   },
   "build": {
     "development": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://squadhub-api.onrender.com/api/v1"
+      },
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -12,12 +15,18 @@
       }
     },
     "preview": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://squadhub-api.onrender.com/api/v1"
+      },
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://squadhub-api.onrender.com/api/v1"
+      },
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
