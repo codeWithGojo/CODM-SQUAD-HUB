@@ -11,7 +11,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: sqlite+pysqlite:///:memory:
+      DATABASE_URL: "sqlite+pysqlite:///:memory:"
       AUTO_CREATE_TABLES: "true"
       EXPOSE_DEV_OTP: "true"
     steps:
