@@ -9,13 +9,34 @@ export const json = (body: unknown, status = 200, extra?: HeadersInit) =>
     },
   });
 
+function expectedOrigin(req: Request): string {
+  const configured = process.env.APP_ORIGIN?.trim();
+  if (configured) return new URL(configured).origin;
+
+  const url = new URL(req.url);
+  const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || req.headers.get("host");
+  const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const protocol = forwardedProto === "http" || forwardedProto === "https"
+    ? forwardedProto
+    : url.protocol.slice(0, -1);
+
+  return host ? new URL(`${protocol}://${host}`).origin : url.origin;
+}
+
 export function rejectCrossSite(req: Request): Response | null {
   if (req.headers.get("sec-fetch-site") === "cross-site") {
     return json({ error: "Cross-site changes are not allowed." }, 403);
   }
   const origin = req.headers.get("origin");
-  if (origin && origin !== new URL(req.url).origin) {
-    return json({ error: "Request origin did not match this site." }, 403);
+  if (origin) {
+    try {
+      if (new URL(origin).origin !== expectedOrigin(req)) {
+        return json({ error: "Request origin did not match this site." }, 403);
+      }
+    } catch {
+      return json({ error: "Request origin did not match this site." }, 403);
+    }
   }
   return null;
 }

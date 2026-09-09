@@ -35,7 +35,7 @@ export function AuthPanel({onSignedIn}: {onSignedIn: (account: Account) => void}
   return (
     <section className="sh-panel sh-auth-panel">
       <header><h2>{mode === "register" ? "Create organizer account" : "Sign in to your workspace"}</h2></header>
-      <p className="sh-method">Email and password are stored on this host. ChatGPT Sites sign-in still works when this app is served from that dispatcher.</p>
+      <p className="sh-method">Use your organizer account for this deployment. New here? Create an account below, then this workspace will save your activity securely.</p>
       <form className="sh-room-form" onSubmit={submit}>
         {mode === "register" && <label>Display name<input name="displayName" autoComplete="name" required maxLength={80} disabled={busy}/></label>}
         <label>Email<input name="email" type="email" autoComplete="email" required disabled={busy}/></label>
@@ -46,7 +46,6 @@ export function AuthPanel({onSignedIn}: {onSignedIn: (account: Account) => void}
       <button className="sh-button" disabled={busy} onClick={() => { setMode(mode === "register" ? "login" : "register"); setError(""); }}>
         {mode === "register" ? "Already have an account" : "Create an organizer account"}
       </button>
-      <a href="/signin-with-chatgpt?return_to=%2F" target="_top">Sign in with ChatGPT</a>
     </section>
   );
 }
